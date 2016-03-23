@@ -1,3 +1,6 @@
+(* it was my birthday on 24th march 2016, I turned 20 *)
+(* and I am doing my PL assignment *weeps* *)
+
 (* bigint is a list of bits and a sign bit *)
 (* LSB is the leftmost bit, RSB is the rightmost bit *)
 (* integers are stored in two's complement form *)
@@ -33,7 +36,41 @@ fun boolLT(a, b) = b andalso not a;
 fun boolGT(a, b) = a andalso not b;
 fun boolLTE(a, b) = (a = b) orelse boolLT(a, b);
 fun boolGTE(a, b) = (a = b) orelse boolGT(a, b);
+
+fun xor(a, b) = (a andalso (not b)) orelse (b andalso (not a));
+
+(* full adder circuit : returns sum and carry *)
+fun fulladder(a, b, c) = 
+let
+  val carry = (a andalso b) orelse (b andalso c) orelse (c andalso a);
+  val sum = xor(a, xor(b, c));
+in (sum, carry) end;
+
+(* adder circuit : adds 2 bit lists and returns carry *)
+(* assert |as| = |bs| *)
+fun adder([], [], incarry) = ([], incarry)
+  | adder(x::xs, y::ys, incarry) = 
+      let val (scurr, ccurr) = fulladder(x, y, incarry);
+          val (snext, cnext) = adder(xs, ys, ccurr);
+      in (scurr :: snext, cnext) end
+  | adder(x, y, c) = ([], false); (* this should never run *)
+
+fun frombitstring(bstr) = 
+let
+  fun fromstring(#"1"::str) = true::fromstring(str)
+    | fromstring(#"0"::str) = false::fromstring(str)
+    | fromstring([]) = []; 
+in BIGINT(fromstring(String.explode(bstr)), false) end;
+
+(* prints a bit representation of the number *)
+fun bitstring(b) = 
+let 
+  fun tostring(true::x) = "1" ^ tostring(x)
+    | tostring(false::x) = "0" ^ tostring(x)
+    | tostring([]) = "";
+in tostring(getBits(b)) end;
 (* --------------------end of utility functions --------------------------*)
+
 
 (* converts a int to bigint *)
 fun getbigint(n) = 
@@ -55,8 +92,8 @@ fun geq(a:bigint, b:bigint) = true;
 
 (* tests for equality *)
 fun eq(a, b) = 
-let val (a, b) = equalizer(a, b);
-in getBits(a) = getBits(b) end;
+  let val (a, b) = equalizer(a, b);
+  in getBits(a) = getBits(b) end;
   
 fun neq(a, b) = not (eq(a, b))
 
@@ -69,8 +106,11 @@ fun unminus(BIGINT(a, b)) = BIGINT(a, not b);
 
 val x = getbigint(3);
 val y = getbigint(9);
-val (p, q) = equalizer(x, y);
+val z = frombitstring("11000");
 
-val z = eq(x, x);
-val y = eq(x, y);
+val t = eq(y, z);
+
+val (a, b) = equalizer(x, y);
+val z = bitstring(BIGINT(adder(getBits(a), getBits(b), false)));
+
 val _ = OS.Process.exit(OS.Process.success);
