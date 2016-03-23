@@ -48,18 +48,17 @@ fun bi2str(b:bigint) = "winter is coming";
 
 fun str2bi(s:string) = 10::[];
 
-fun lt(a, b) = 
-let
-  val (a, b) = equalize(a, b);
-  val applycompare
-
-in end;
+fun lt(a:bigint, b:bigint) = true;
 fun leq(a:bigint, b:bigint) = true;
 fun le(a:bigint, b:bigint) = true;
 fun geq(a:bigint, b:bigint) = true;
-(* TODO : call equalizer *)
-fun eq(a, b) = (getBits(a) = getBits(b));
-fun neq(a:bigint, b:bigint) = not (eq(a, b))
+
+(* tests for equality *)
+fun eq(a, b) = 
+let val (a, b) = equalizer(a, b);
+in getBits(a) = getBits(b) end;
+  
+fun neq(a, b) = not (eq(a, b))
 
 fun add(a:bigint, b:bigint) = a;
 fun sub(a:bigint, b:bigint) = a;
@@ -72,4 +71,6 @@ val x = getbigint(3);
 val y = getbigint(9);
 val (p, q) = equalizer(x, y);
 
+val z = eq(x, x);
+val y = eq(x, y);
 val _ = OS.Process.exit(OS.Process.success);
