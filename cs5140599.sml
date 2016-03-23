@@ -1,3 +1,4 @@
+(* TODO : remove the sign bit *)
 (* it was my birthday on 24th march 2016, I turned 20 *)
 (* and I am doing my PL assignment *weeps* *)
 
@@ -13,7 +14,7 @@ fun getSign(BIGINT(_, b)) = b;
 fun bitmake(i:int) = if(i = 0) then false else true;
 
 (* converts a positive number to its bool list form *)
-fun bintegerize(n) = if(n = 0) then [] 
+fun bintegerize(n) = if(n = 0) then false::[] 
                      else (bitmake(n mod 2)) :: bintegerize(n div 2); 
 
 (* creates a list of matching bits, useful for sign extension *)
@@ -48,18 +49,17 @@ in (sum, carry) end;
 
 (* adder circuit : adds 2 bit lists and returns carry *)
 (* assert |as| = |bs| *)
-fun adder([], [], incarry) = ([], incarry)
-  | adder(x::xs, y::ys, incarry) = 
-      let val (scurr, ccurr) = fulladder(x, y, incarry);
-          val (snext, cnext) = adder(xs, ys, ccurr);
-      in (scurr :: snext, cnext) end
-  | adder(x, y, c) = ([], false); (* this should never run *)
+
+fun adder(x::xs, y::ys, cin) = 
+      let val (s, cout) = fulladder(x, y, cin);
+      in s :: adder(xs, ys, cout) end
+  | adder(x, y, c) = []; (* this should never run *)
 
 fun frombitstring(bstr) = 
 let
   fun fromstring(#"1"::str) = true::fromstring(str)
     | fromstring(#"0"::str) = false::fromstring(str)
-    | fromstring([]) = []; 
+    | fromstring(s) = []; 
 in BIGINT(fromstring(String.explode(bstr)), false) end;
 
 (* prints a bit representation of the number *)
@@ -67,8 +67,23 @@ fun bitstring(b) =
 let 
   fun tostring(true::x) = "1" ^ tostring(x)
     | tostring(false::x) = "0" ^ tostring(x)
-    | tostring([]) = "";
+    | tostring([]) = ""
 in tostring(getBits(b)) end;
+
+(* complements a bool list *)
+fun complement(b::bs) = not b :: complement(bs)
+  | complement([]) = [];
+
+fun complement2(b) =
+let
+  val a = frombitstring("1");
+  val bbitscomp = complement(getBits(b)); 
+  val sign = getSign(b);
+  val bcomp = BIGINT(bbitscomp, sign);
+  val (aa, bb) = equalizer(a, bcomp);
+  val d = adder(getBits(aa), getBits(bb), false);
+ in BIGINT(d, sign) end;
+
 (* --------------------end of utility functions --------------------------*)
 
 
@@ -78,8 +93,10 @@ let
   val sign = if(n >= 0) then false else true;
   val abso = if(n >= 0) then n else ~n;
   val bits = bintegerize(abso);
-  (* TODO : twos complement for negative numbers *)
-in BIGINT(bits, sign) end;
+in 
+  if(sign = false) then BIGINT(bits, sign) 
+  else complement2(BIGINT(bits, sign))
+end;
 
 fun bi2str(b:bigint) = "winter is coming";
 
@@ -97,20 +114,23 @@ fun eq(a, b) =
   
 fun neq(a, b) = not (eq(a, b))
 
-fun add(a:bigint, b:bigint) = a;
+(* TODO : for negaive numbers *)
+fun add(a, b) = 
+let
+  val (aa, bb) = equalizer(a, b);
+in BIGINT(adder(getBits(aa), getBits(bb), false), false) end;
+  
+  
 fun sub(a:bigint, b:bigint) = a;
 fun mul(a:bigint, b:bigint) = a;
 (* fun div(a:bigint, b:bigint) = a; *)
 (* fun mod(a:bigint, b:bigint) = a; *)
 fun unminus(BIGINT(a, b)) = BIGINT(a, not b);
 
-val x = getbigint(3);
-val y = getbigint(9);
-val z = frombitstring("11000");
 
-val t = eq(y, z);
-
-val (a, b) = equalizer(x, y);
-val z = bitstring(BIGINT(adder(getBits(a), getBits(b), false)));
-
+val x = getbigint(~3);
+val y = getbigint(~9);
+val w = bitstring(x);
+val w = bitstring(y);
+val w = bitstring(add(x, y));
 val _ = OS.Process.exit(OS.Process.success);
