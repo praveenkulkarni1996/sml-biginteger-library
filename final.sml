@@ -6,11 +6,11 @@
 (* LSB is the leftmost bit, RSB is the rightmost bit *)
 (* integers are stored in two's complement form *)
 
-datatype bigint = BIGINT of bool list * bool;
+datatype bigint = BIGINT of bool list;
 
 (* -------------------------- utility functions --------------------------*)
-fun getBits(BIGINT(a, _)) = a;
-fun getSign(BIGINT(_, b)) = b;
+fun getBits(BIGINT(a)) = a;
+fun getSign(BIGINT(a)) = List.last(a);
 fun bitmake(i:int) = if(i = 0) then false else true;
 
 (* converts a positive number to its bool list form *)
@@ -23,20 +23,34 @@ fun extend(n, bit) = if(n = 0) then [] else bit :: extend(n - 1, bit);
 (* extends a blist by n digits *)
 fun signextend(bint, sign, n) = bint @ extend(n, sign);
 
+(* takes a pair of bit sequences, and does signextension until they are both of
+ * equal length, this works in linear time.
+ * Named after the greek monster who did this sort of stuff.
+ *)
+
+fun greek(BIGINT(x), BIGINT(y)) = 
+let
+  fun equator([], [], xp, yp) = ([], [])
+    | equator(x::xs, [], xp, yp) = 
+      let val (a, b) = equator(xs, [], x, yp) in (x::a, yp::b) end
+    | equator([], y::ys, xp, yp) = 
+      let val (a, b) = equator([], ys, xp, y) in (xp::a, y::b) end
+    | equator(x::xs, y::ys, xp, yp) = 
+      let val (a, b) = equator(xs, ys, x, y) in (x::a, y::b) end;
+  val (xx, yy) = equator(x, y, false, false)
+in (BIGINT(xx), BIGINT(yy)) end;
+
 (* takes two bigints and equalizes their lengths, by sign extension *)
-fun equalizer(BIGINT(abits, asign), BIGINT(bbits, bsign)) = 
+fun equalizer(BIGINT(abits), BIGINT(bbits)) = 
 let
   val n:int = List.length(abits);
   val m:int = List.length(bbits);
+  val asign = List.last(abits);  
+  val bsign = List.last(bbits);  
   val s:int = if(n >= m) then n else m;
   val aext:bool list = signextend(abits, asign, s - n);
   val bext:bool list = signextend(bbits, bsign, s - m);
-in (BIGINT(aext, asign), BIGINT(bext, bsign)) end;
-
-fun boolLT(a, b) = b andalso not a;
-fun boolGT(a, b) = a andalso not b;
-fun boolLTE(a, b) = (a = b) orelse boolLT(a, b);
-fun boolGTE(a, b) = (a = b) orelse boolGT(a, b);
+in (BIGINT(aext), BIGINT(bext)) end;
 
 fun xor(a, b) = (a andalso (not b)) orelse (b andalso (not a));
 
@@ -49,18 +63,19 @@ in (sum, carry) end;
 
 (* adder circuit : adds 2 bit lists and returns carry *)
 (* assert |as| = |bs| *)
-
 fun adder(x::xs, y::ys, cin) = 
       let val (s, cout) = fulladder(x, y, cin);
       in s :: adder(xs, ys, cout) end
-  | adder(x, y, c) = []; (* this should never run *)
+  | adder(x, y, c) = []; 
 
+
+(* creates a bigint from a bitstring of '0's and '1's *)
 fun frombitstring(bstr) = 
 let
   fun fromstring(#"1"::str) = true::fromstring(str)
     | fromstring(#"0"::str) = false::fromstring(str)
     | fromstring(s) = []; 
-in BIGINT(fromstring(String.explode(bstr)), false) end;
+in BIGINT(fromstring(String.explode(bstr))) end;
 
 (* prints a bit representation of the number *)
 fun bitstring(b) = 
@@ -74,18 +89,25 @@ in tostring(getBits(b)) end;
 fun complement(b::bs) = not b :: complement(bs)
   | complement([]) = [];
 
+(* creates a twos complements of a bool list *)
 fun complement2(b) =
 let
-  val a = frombitstring("1");
+  val a = frombitstring("0");
   val bbitscomp = complement(getBits(b)); 
   val sign = getSign(b);
-  val bcomp = BIGINT(bbitscomp, sign);
+  val bcomp = BIGINT(bbitscomp);
   val (aa, bb) = equalizer(a, bcomp);
-  val d = adder(getBits(aa), getBits(bb), false);
- in BIGINT(d, sign) end;
+  val d = adder(getBits(aa), getBits(bb), true);
+ in BIGINT(d) end;
+
+fun abs(x) = 
+let
+  val y = List.last(getBits(x));
+in 
+  if(y = false) then x else complement2(x) end;
+
 
 (* --------------------end of utility functions --------------------------*)
-
 
 (* converts a int to bigint *)
 fun getbigint(n) = 
@@ -94,43 +116,34 @@ let
   val abso = if(n >= 0) then n else ~n;
   val bits = bintegerize(abso);
 in 
-  if(sign = false) then BIGINT(bits, sign) 
-  else complement2(BIGINT(bits, sign))
+  if(sign = false) then BIGINT(bits) 
+  else complement2(BIGINT(bits))
 end;
 
-fun bi2str(b:bigint) = "winter is coming";
+(* returns the negative of a bigint *)
+fun unminus(a) = complement2(a);
 
-fun str2bi(s:string) = 10::[];
-
-fun lt(a:bigint, b:bigint) = true;
-fun leq(a:bigint, b:bigint) = true;
-fun le(a:bigint, b:bigint) = true;
-fun geq(a:bigint, b:bigint) = true;
-
-(* tests for equality *)
-fun eq(a, b) = 
-  let val (a, b) = equalizer(a, b);
-  in getBits(a) = getBits(b) end;
-  
-fun neq(a, b) = not (eq(a, b))
-
-(* TODO : for negaive numbers *)
 fun add(a, b) = 
 let
   val (aa, bb) = equalizer(a, b);
-in BIGINT(adder(getBits(aa), getBits(bb), false), false) end;
-  
-  
-fun sub(a:bigint, b:bigint) = a;
-fun mul(a:bigint, b:bigint) = a;
-(* fun div(a:bigint, b:bigint) = a; *)
-(* fun mod(a:bigint, b:bigint) = a; *)
-fun unminus(BIGINT(a, b)) = BIGINT(a, not b);
+in BIGINT(adder(getBits(aa), getBits(bb), false)) end;
 
+fun sub(a, b) = 
+let
+  val b = complement(getBits(b));
+  val (aa, bb) = equalizer(a, BIGINT(b));
+in BIGINT(adder(getBits(aa), getBits(bb), true)) end;
 
-val x = getbigint(~3);
-val y = getbigint(~9);
+(* test suite *)
+val x = getbigint(9);
+val y = getbigint(~3);
 val w = bitstring(x);
 val w = bitstring(y);
-val w = bitstring(add(x, y));
+val w = bitstring(sub(x, y));
+val w = bitstring(abs(y));
+val w = bitstring(abs(x));
+val (x, y) = greek(x, y);
+val x = bitstring(x);
+val y = bitstring(y);
+
 val _ = OS.Process.exit(OS.Process.success);
