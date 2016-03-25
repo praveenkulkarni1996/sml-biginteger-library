@@ -1,4 +1,4 @@
-(* TODO : remove the sign bit *)
+
 (* it was my birthday on 24th march 2016, I turned 20 *)
 (* and I am doing my PL assignment *weeps* *)
 
@@ -124,6 +124,17 @@ fun multiply(x, BIGINT([])) = BIGINT(false::[]) (* ZERO *)
       val c = BIGINT(addsub(getBits(a), false::getBits(b), false));
     in c end;
 
+(* checks for less than and less than equal to *)
+fun checkless(x::xs, y::ys, prev) = 
+  if(x = true andalso y = false) then checkless(xs, ys, false)
+  else if(x = false andalso y = true) then checkless(xs, ys, true)
+  else checkless(xs, ys, prev)
+  | checkless([], y::ys, prev) = 
+  if(y = true) then true else checkless([], ys, prev)
+  | checkless(x::xs, [], prev) = 
+  if(x = true) then false else checkless(xs, [], prev)
+  | checkless([], [], prev) = prev;
+
 
 (* --------------------end of utility functions --------------------------*)
 
@@ -141,6 +152,39 @@ end;
 (* returns the negative of a bigint *)
 fun unminus(a) = comp2(a);
 
+(* tests for equality *)
+fun eq(a, b) =
+let
+  val aa = normal(getBits(a));
+  val bb = normal(getBits(b));
+in (aa = bb) end;
+
+(* tests for inequality *)
+fun neq(a, b) = not (eq(a, b));
+
+(* tests if a < b *)
+fun lt(a, b) = 
+let
+  val aa = getBits(abs(a));
+  val bb = getBits(abs(b));
+  val sigA = getSign(a);
+  val sigB = getSign(b);
+  val res = checkless(aa, bb, false);
+in 
+  if(res andalso sigB) then false
+  else if(not(res) andalso sigA andalso not(sigB)) then true
+  else res 
+end;
+
+(* tests if a <= b*)
+fun leq(a, b) = eq(a, b) orelse lt(a, b);
+
+(* tests if a > b *)
+fun gt(a, b) = not(leq(a, b));
+
+(* tests if a >= b *)
+fun geq(a, b) = not(lt(a, b));
+
 (* adds two bigintegers *)
 fun add(a, b) = 
 let
@@ -149,7 +193,6 @@ let
   val ans = normal(addsub(aa, bb, false));
 in BIGINT(ans) end;
   
-
 (* subtracts two bigintegers *)
 fun sub(a, b) = 
 let
@@ -167,11 +210,41 @@ in
   if(sign = false) then magnitude else comp2(magnitude)
 end;
 
-val a = getbigint(~15);
-val b = getbigint(~15);
-val aa = getBits(a);
-val bb = getBits(b);
-val aa = bitstring(BIGINT(normal(aa)));
-val bb = bitstring(BIGINT(normal(bb)));
-val cc = bitstring(mul(a, b));
+
+
+(*----------------- for conversions -----------------*)
+
+(* converts a string to a list of intergers *)
+fun str2intlist(str) = 
+let 
+  fun sometoint(x) = Option.getOpt(x, 0);
+  val strlist = List.map (Char.toString) (String.explode(str));
+  val optlist = List.map (Int.fromString) (strlist);
+  val intlist = List.map (sometoint) (optlist);
+in intlist end;
+
+(* converts a string into a bigint *)
+fun str2bi(str) =
+let
+  (* converts a list of integers to a biginteger *)
+  fun mul10add(x, []) = x
+    | mul10add(x, y::ys) = 
+    mul10add(add(mul(x, getbigint(10)), getbigint(y)), ys);
+  val sign = List.hd(String.explode(str)) = #"~";
+  val intlist = str2intlist(str);
+  val magnitude = mul10add(getbigint(0), intlist);
+in 
+  if(sign) then comp2(magnitude) else magnitude
+end;
+
+(* test suite *)
+val a = getbigint(~0);
+val b = str2bi("~0");
+val ltlt = lt(a, b);
+val lteq = leq(a, b);
+val gtgt = gt(a, b);
+val gteq = geq(a, b);
+(*val aa = bitstring(BIGINT(normal(getBits(a))));
+val bb = bitstring(BIGINT(normal(getBits(b))));
+val cc = bitstring(mul(a, b)); *)
 val _ = OS.Process.exit(OS.Process.success);
