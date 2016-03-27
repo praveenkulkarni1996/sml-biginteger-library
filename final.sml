@@ -134,7 +134,6 @@ fun checkless(x::xs, y::ys, prev) =
   if(x = true) then false else checkless(xs, [], prev)
   | checkless([], [], prev) = prev;
 
-
 (* --------------------end of utility functions --------------------------*)
 
 (* converts a int to bigint *)
@@ -329,18 +328,43 @@ let
     | iv2str(h::t) = Int.toString(h) ^ iv2str(t);
 in prefix(sign) ^ iv2str(List.rev (nv2iv(runBoolList(List.rev mag)))) end;
 
+(*------ for divmod -----*)
 
-val a = getbigint(1000000);
-val z = bi2str(a);
-val z = bi2str(mul(a, a));
-val aa = str2bi("~1245156215336613646");
-val bb = str2bi("0");
-val cc = bi2str(mul(aa, bb));
+fun cansub(a, b) = geq(BIGINT(List.rev a @ [false]), BIGINT(List.rev b @ [false]));
+fun subtract(a:bool list, b:bool list) = List.rev (getBits(sub(BIGINT(List.rev a @ [false]), BIGINT(List.rev b @ [false]))));
 
-(* test suite 
-val b = str2bi("~0");
-val aa = bitstring(BIGINT(normal(getBits(a))));
-(*val bb = bitstring(BIGINT(normal(getBits(b))));
-  val cc = bitstring(mul(a, b)); *) *)
+fun divmod(lt, [], divizor) = 
+  if(cansub(lt, divizor)) then ([true], subtract(lt, divizor)) 
+  else  ([false], lt) 
+  | divmod(lt, r::rs, divizor) = 
+    if(cansub(lt, divizor)) then
+      let val (q, r) = divmod(subtract(lt, divizor) @ [r], rs, divizor);
+      in (true::q, r) end
+    else 
+      let val (q, r) = divmod(lt @ [r], rs, divizor);
+      in (false::q, r) end;
+
+exception dividebyzero;
+
+
+(* TODO : signs *)
+fun div4bigint(a, b) = 
+  if(eq(b, getbigint(0))) then raise dividebyzero
+  else BIGINT(List.rev (#1(divmod([], List.rev(getBits(a)), List.rev(getBits(b))))));
+
+fun mod4bigint(a, b) = 
+  if(eq(b, getbigint(0))) then raise dividebyzero
+  else BIGINT(List.rev (#2(divmod([], List.rev(getBits(a)), List.rev(getBits(b))))));
+
+val a = str2bi("111");
+val b = str2bi("10");
+
+val c = bi2str(div4bigint(a, b));
+val d = bi2str(mod4bigint(a, b));
+
+
+
+(* ------------- end divmod -------------*)
+
 val _ = OS.Process.exit(OS.Process.success);
 
