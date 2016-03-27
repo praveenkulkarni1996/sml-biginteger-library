@@ -1,4 +1,3 @@
-
 (* it was my birthday on 24th march 2016, I turned 20 *)
 (* and I am doing my PL assignment *weeps* *)
 
@@ -237,14 +236,111 @@ in
   if(sign) then comp2(magnitude) else magnitude
 end;
 
-(* test suite *)
-val a = getbigint(~0);
+
+(*----------------- to string -----------------------*)
+
+type NIBBLE = bool list;
+(* shifts a nibble to the left *)
+
+(* converts a bool to a nibble *)
+fun boolToNibble(c):NIBBLE = c::false::false::false::[];
+
+(* shifts a nibble *)
+fun shiftNibbleLeft(nibble:NIBBLE, c) = 
+  ((c :: List.take(nibble, 3)):NIBBLE, (List.last nibble));
+
+val x = boolToNibble(false);
+val y = shiftNibbleLeft(x, true);
+
+(* greater than 5 *)
+fun greaterThanFive(n:NIBBLE) = 
+  List.nth(n, 3) orelse ((List.nth(n, 2) andalso (List.nth(n, 1) orelse List.nth(n, 0))));
+
+(* converts a nibble =  4 bits to a int *)
+fun nibbleToInt(n:NIBBLE) =
+let 
+  fun boolToInt(true) = 1
+    | boolToInt(false) = 0;
+  fun boolListToInt((n::ns):bool list) = boolToInt(n) + 2 * boolListToInt(ns)
+    | boolListToInt([]) = 0;
+in boolListToInt(n) end;
+
+(* converts an integer to a nibble *)
+fun intToNibble(i:int) = 
+let
+  fun helper(0) = []
+    | helper(n) = if(n mod 2 = 1) then true::helper(n div 2) else false::helper(n div 2);
+  val ans = helper(i);
+  val n = List.length ans;
+in 
+  if(n = 0) then false::false::false::false::[]
+  else if(n = 1) then ans @ false::false::false::[]
+  else if(n = 2) then ans @ false::false::[]
+  else if(n = 3) then ans @ false::[]
+  else ans 
+end;
+
+(* adds three to a nibble *)
+fun addThree(n:NIBBLE) =
+let
+  val intn = nibbleToInt(n);
+  val nn = intToNibble(intn + 3);
+in nn end;
+
+(* shifts a nibble vector and inserts stuff*)
+fun shiftLeft(nibvec, enter) = 
+let
+  fun fixer(nv, c) = 
+    let fun shifter([], c) = ([], c)
+          | shifter(n::nv, c) = 
+            let val (newn, newc) = shiftNibbleLeft(n, c);
+                val (newnv, newnewc) = shifter(nv, newc);
+            in (newn::newnv, newnewc) end;
+        val (shifted, overflow) = shifter(nv, c);
+        val answer = if(overflow) then shifted @ [boolToNibble(true)] else shifted; 
+  in answer end;
+in fixer(nibvec, enter) end;
+
+(* runs the bool list *)
+fun runBoolList(bitseq) = 
+let 
+  (* performs add3 if greater than 5 throuh out the nibble vector *)
+  fun resolve([]) = []
+    | resolve(n::nv) = 
+      let val fixed = if(greaterThanFive(n)) then addThree(n) else n;
+      in fixed::resolve(nv) end;
+  (* actually does the running around *)
+  fun helper(nv, b::c::bs) = helper(resolve(shiftLeft(nv, b)), c::bs)
+    | helper(nv, b::[]) = shiftLeft(nv, b)
+    | helper(nv, []) = nv;
+in helper(boolToNibble(false)::[], bitseq) end;
+
+fun bi2str(b) = 
+let
+  val mag = getBits(abs(b));
+  val sign = getSign(b);
+  fun prefix(false) = ""
+    | prefix(true) = "~";
+
+  fun nv2iv([]) = []
+    | nv2iv(n::nv) = nibbleToInt(n)::nv2iv(nv);
+
+  fun iv2str([]) = ""
+    | iv2str(h::t) = Int.toString(h) ^ iv2str(t);
+in prefix(sign) ^ iv2str(List.rev (nv2iv(runBoolList(List.rev mag)))) end;
+
+
+val a = getbigint(1000000);
+val z = bi2str(a);
+val z = bi2str(mul(a, a));
+val aa = str2bi("~1245156215336613646");
+val bb = str2bi("0");
+val cc = bi2str(mul(aa, bb));
+
+(* test suite 
 val b = str2bi("~0");
-val ltlt = lt(a, b);
-val lteq = leq(a, b);
-val gtgt = gt(a, b);
-val gteq = geq(a, b);
-(*val aa = bitstring(BIGINT(normal(getBits(a))));
-val bb = bitstring(BIGINT(normal(getBits(b))));
-val cc = bitstring(mul(a, b)); *)
+val aa = bitstring(BIGINT(normal(getBits(a))));
+(*val bb = bitstring(BIGINT(normal(getBits(b))));
+  val cc = bitstring(mul(a, b)); *) *)
 val _ = OS.Process.exit(OS.Process.success);
+
