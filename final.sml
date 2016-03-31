@@ -350,9 +350,8 @@ struct
   in prefix(sign) ^ iv2str(List.rev (nv2iv(runBoolList(List.rev mag)))) end;
 
   (*------ for divmod -----*)
-
   fun cansub(a, b) = geq(BIGINT(List.rev a @ [false]), BIGINT(List.rev b @ [false]));
-  fun subtract(a:bool list, b:bool list) = List.rev (getBits(sub(BIGINT(List.rev a @ [false]), BIGINT(List.rev b @ [false]))));
+  fun subtract(a, b) = List.rev (getBits(sub(BIGINT(List.rev a @ [false]), BIGINT(List.rev b @ [false]))));
 
   fun divmod(lt, [], divizor) = 
     if(cansub(lt, divizor)) then ([true], subtract(lt, divizor)) 
@@ -367,25 +366,33 @@ struct
 
   exception dividebyzero;
 
-
-  (* TODO : signs *)
-  (* TODO : normalize *)
+  (* division *)
   fun div4bigint(a, b) = 
     if(eq(b, getbigint(0))) then raise dividebyzero
-    else BIGINT(List.rev (#1(divmod([], List.rev(getBits(a)), List.rev(getBits(b))))));
+    else 
+      let
+        val aa = abs a;
+        val bb = abs b;
+        val cc = BIGINT(normal(List.rev (#1(divmod([], List.rev(getBits(aa)), List.rev(getBits(bb)))))))
+        val sig_a = getSign a;
+        val sig_b = getSign b;
+      in 
+        if(sig_a = sig_b) then cc
+        else unminus(cc)
+      end;
 
+  (* modulus *)
   fun mod4bigint(a, b) = 
     if(eq(b, getbigint(0))) then raise dividebyzero
-    else BIGINT(List.rev (#2(divmod([], List.rev(getBits(a)), List.rev(getBits(b))))));
-
+    else 
+      let
+        val aa = abs a;
+        val bb = abs b;
+        val cc = BIGINT(normal(List.rev (#2(divmod([], List.rev(getBits(aa)), List.rev(getBits(bb)))))));
+        val sig_a = getSign a;
+        val sig_b = getSign b;
+      in 
+        if(sig_a) then unminus(cc) else cc
+      end;
 end;
 
-val a = BigInt.str2bi("34");
-val b = BigInt.getbigint(34);
-
-val answer = (BigInt.div4bigint(a, b));
-val tester = BigInt.bi2str answer;
-
-val testeq = BigInt.neq(a, b);
-
-val _ = OS.Process.exit(OS.Process.success);
